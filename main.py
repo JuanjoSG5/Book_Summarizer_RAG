@@ -25,7 +25,7 @@ url = "sample.txt"
 loader = TextLoader(url)
 docs = loader.load()
 
-textSplitter = RecursiveCharacterTextSplitter(chunk_size=10000, chunk_overlap=1000)
+textSplitter = RecursiveCharacterTextSplitter(chunk_size=5000, chunk_overlap=1000)
 splits = textSplitter.split_documents(docs)
 
 embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-mpnet-base-v2")
