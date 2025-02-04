@@ -25,83 +25,83 @@ url = "sample.txt"
 loader = TextLoader(url)
 docs = loader.load()
 
-text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
-splits = text_splitter.split_documents(docs)
+textSplitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
+splits = textSplitter.split_documents(docs)
 
 embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-mpnet-base-v2")
 vectorstore = Chroma.from_documents(documents=splits, embedding=embeddings)
 
-def generate_book_summary():
+def generateBookSummary():
     """Helper function to generate book summary using the tool"""
-    return create_book_summary_tool(llm, text_splitter, docs)
+    return create_book_summary_tool(llm, textSplitter, docs)
 
-def chatbot(message, previous_history):
+def chatbot(message, previousHistory):
     # Check if message contains summary keyword
     if "resumen" in message.lower():
-        summary = generate_book_summary()
+        summary = generateBookSummary()
         return [(message, summary)]
     
-    relevant_docs = vectorstore.similarity_search(message)
-    context_text = "\n\n".join([doc.page_content for doc in relevant_docs])
+    relevantDocs = vectorstore.similarity_search(message)
+    contextText = "\n\n".join([doc.page_content for doc in relevantDocs])
     
-    final_prompt = (
+    finalPrompt = (
         "Eres un asistente experto en solucionar dudas sobre conceptos descritos en un libro. "
         "Utiliza el siguiente contexto para responder de forma breve y concisa. "
         "Si no encuentras la información, responde que no la conoces.\n\n"
-        f"Contexto:\n{context_text}\n\n"
+        f"Contexto:\n{contextText}\n\n"
         f"Pregunta: {message}\n"
         "Respuesta:"
     )
 
     messages = []
-    for user_msg, bot_response in previous_history:
+    for user_msg, botResponse in previousHistory:
         messages.append({"role": "user", "content": user_msg})
-        messages.append({"role": "assistant", "content": bot_response})
-    messages.append({"role": "user", "content": final_prompt})
+        messages.append({"role": "assistant", "content": botResponse})
+    messages.append({"role": "user", "content": finalPrompt})
 
     response = llm.stream(messages)
-    partial_response = ""
+    partialResponse = ""
 
     for chunk in response:
         if chunk and hasattr(chunk, "content"):
             content = chunk.content
             if content is not None:
-                partial_response += content
-                yield partial_response
+                partialResponse += content
+                yield partialResponse
 
-def process_message(message, history):
+def processMessage(message, history):
     # Check for summary keyword first
     if "resumen" in message.lower():
-        summary = generate_book_summary()
-        updated_history = history + [(message, summary)]
-        yield updated_history
+        summary = generateBookSummary()
+        updatedHistory = history + [(message, summary)]
+        yield updatedHistory
         return
 
     # Show processing message immediately
-    display_history = history + [(message, "⏳ Procesando...")]
-    yield display_history
+    displayHistory = history + [(message, "⏳ Procesando...")]
+    yield displayHistory
     
     # Generate actual response
     full_response = ""
     for response_chunk in chatbot(message, history):
         full_response = response_chunk
-        display_history[-1] = (message, full_response)
-        yield display_history
+        displayHistory[-1] = (message, full_response)
+        yield displayHistory
 
-def create_summary(history):
-    summary = generate_book_summary()
+def createSummary(history):
+    summary = generateBookSummary()
     return history + [("Generar resumen del libro", summary)]
 
-def create_interface():
+def createInterface():
     with gr.Blocks(title="ChatBot RAG - Resumen de libros", theme="ocean") as demo:
         gr.Markdown("## Asistente virtual resumidor de libros.")
         
-        chatbot_component = gr.Chatbot(height=400)
+        chatbotComponent = gr.Chatbot(height=400)
         textbox = gr.Textbox(placeholder="Escribe tu mensaje aquí...", container=False, scale=7)
         
         with gr.Row():
-            submit_btn = gr.Button("Enviar")
-            summary_btn = gr.Button("Generar Resumen Completo")
+            submitBtn = gr.Button("Enviar")
+            summaryBtn = gr.Button("Generar Resumen Completo")
             
         examples = gr.Examples(
             examples=[
@@ -115,32 +115,33 @@ def create_interface():
         )
 
         # Textbox submit handler
-        submit_event = textbox.submit(
-            fn=process_message,
-            inputs=[textbox, chatbot_component],
-            outputs=[chatbot_component],
+        submitEvent = textbox.submit(
+            fn=processMessage,
+            inputs=[textbox, chatbotComponent],
+            outputs=[chatbotComponent],
             show_progress="hidden"
         )
-        submit_event.then(lambda: gr.Textbox(value=""), None, [textbox])
+        
+        submitEvent.then(lambda: gr.Textbox(value=""), None, [textbox])
         
         # Submit button handler
-        submit_btn.click(
-            fn=process_message,
-            inputs=[textbox, chatbot_component],
-            outputs=[chatbot_component],
+        submitBtn.click(
+            fn=processMessage,
+            inputs=[textbox, chatbotComponent],
+            outputs=[chatbotComponent],
             show_progress="hidden"
         ).then(lambda: gr.Textbox(value=""), None, [textbox])
         
         # Summary button handler
-        summary_btn.click(
-            fn=create_summary,
-            inputs=[chatbot_component],
-            outputs=[chatbot_component],
+        summaryBtn.click(
+            fn=createSummary,
+            inputs=[chatbotComponent],
+            outputs=[chatbotComponent],
             show_progress="hidden"
         )
 
     return demo
 
 if __name__ == "__main__":
-    demo = create_interface()
+    demo = createInterface()
     demo.launch()
