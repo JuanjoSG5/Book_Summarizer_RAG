@@ -73,7 +73,7 @@ def processMessage(message, history):
     # Check for summary keyword first
     if "resumen" in message.lower():
         summary = generateBookSummary()
-        updatedHistory = history + [(message, summary)]
+        updatedHistory = history + [(message, summary.content)]
         yield updatedHistory
         return
 
@@ -101,6 +101,7 @@ def createInterface():
         
         with gr.Row():
             submitBtn = gr.Button("Enviar")
+            # TODO: remove this button
             summaryBtn = gr.Button("Generar Resumen Completo")
             
         examples = gr.Examples(
