@@ -27,7 +27,7 @@ def create_book_summary_tool(llm, text_splitter, docs):
         """
         section_summaries = []
         
-        for i in range(0, len(splits), 3):  # Process 3 chunks at a time for context
+        for i in range(0, len(splits), 2):  # Process 3 chunks at a time for context
             # Select current and surrounding chunks for context
             context_chunks = splits[max(0, i-1):i+2]
             
@@ -46,7 +46,7 @@ def create_book_summary_tool(llm, text_splitter, docs):
             summary = summary_chain.invoke({"context": full_context})
             
             section_summaries.append({
-                "section_range": f"Chunks {i} to {i+3}",
+                "section_range": f"Chunks {i} to {i+2}",
                 "context": full_context[:500] + "...",  # Truncate for brevity
                 "summary": summary
             })
