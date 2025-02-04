@@ -13,7 +13,7 @@ load_dotenv()
 llm = ChatOpenAI(
     openai_api_key=getenv("OPENROUTER_API_KEY"),
     openai_api_base=getenv("OPENROUTER_BASE_URL"),
-    model_name="deepseek/deepseek-r1",
+    model_name="google/gemini-flash-1.5-8b",
     model_kwargs={
         "extra_headers": {
             "Helicone-Auth": f"Bearer " + getenv("HELICONE_API_KEY")
