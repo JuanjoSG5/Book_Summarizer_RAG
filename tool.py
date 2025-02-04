@@ -1,6 +1,8 @@
 from typing import List, Dict
 from langchain_core.prompts import PromptTemplate
+from langchain_core.tools import tool
 
+@tool
 def create_book_summary_tool(llm, text_splitter, docs):
     """
     Create a tool to summarize the book with context preservation
