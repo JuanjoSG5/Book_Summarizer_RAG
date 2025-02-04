@@ -78,6 +78,7 @@ def processMessage(message, history):
         summary = generateBookSummary()
         updatedHistory = history + [(message, summary.content)]
         yield updatedHistory
+        
     else:
         full_response = ""
         for response_chunk in chatbot(message, history):
@@ -103,7 +104,6 @@ def createInterface():
             
         examples = gr.Examples(
             examples=[
-                "¿De qué trata el libro?",
                 "¿Cuál es el argumento principal?",
                 "Haz un resumen del contenido",
                 "¿Qué temas principales se abordan?"
