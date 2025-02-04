@@ -33,7 +33,7 @@ vectorstore = Chroma.from_documents(documents=splits, embedding=embeddings)
 
 def generateBookSummary():
     """Helper function to generate book summary using the tool"""
-    return create_book_summary_tool(llm, textSplitter, docs)
+    return create_book_summary_tool.invoke({"llm":llm, "text_splitter":textSplitter, "docs":docs})
 
 def chatbot(message, previousHistory):
     # Check if message contains summary keyword
