@@ -84,4 +84,5 @@ def create_book_summary_tool(llm, text_splitter, docs):
         
         return comprehensive_summary
     
-    return book_summary_tool
+    summary = book_summary_tool()
+    return summary
