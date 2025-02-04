@@ -70,23 +70,20 @@ def chatbot(message, previousHistory):
                 yield partialResponse
 
 def processMessage(message, history):
+    displayHistory = history + [(message, "⏳ Procesando...")]
+    yield displayHistory
+    
     # Check for summary keyword first
     if "resumen" in message.lower():
         summary = generateBookSummary()
         updatedHistory = history + [(message, summary.content)]
         yield updatedHistory
-        return
-
-    # Show processing message immediately
-    displayHistory = history + [(message, "⏳ Procesando...")]
-    yield displayHistory
-    
-    # Generate actual response
-    full_response = ""
-    for response_chunk in chatbot(message, history):
-        full_response = response_chunk
-        displayHistory[-1] = (message, full_response)
-        yield displayHistory
+    else:
+        full_response = ""
+        for response_chunk in chatbot(message, history):
+            full_response = response_chunk
+            displayHistory[-1] = (message, full_response)
+            yield displayHistory
 
 def createSummary(history):
     summary = generateBookSummary()
