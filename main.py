@@ -99,9 +99,8 @@ def createInterface():
         
         with gr.Row():
             submitBtn = gr.Button("Enviar")
-            # TODO: remove this button
-            summaryBtn = gr.Button("Generar Resumen Completo")
             
+        # Example queries 
         examples = gr.Examples(
             examples=[
                 "¿Cuál es el argumento principal?",
