@@ -148,14 +148,6 @@ def createInterface():
             outputs=[chatbotComponent],
             show_progress="hidden"
         ).then(lambda: gr.Textbox(value=""), None, [textbox])
-        
-        # Summary button handler
-        summaryBtn.click(
-            fn=createSummary,
-            inputs=[chatbotComponent],
-            outputs=[chatbotComponent],
-            show_progress="hidden"
-        )
 
     return demo
 
