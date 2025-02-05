@@ -27,14 +27,14 @@ def create_book_summary_tool(llm, text_splitter, docs):
         """
         section_summaries = []
         
-        for i in range(0, len(splits), 2):  # Process 3 chunks at a time for context
+        # Iterate over 2 chunks at the time, to reduce the context size
+        for i in range(0, len(splits), 2):  
             # Select current and surrounding chunks for context
             context_chunks = splits[max(0, i-1):i+2]
             
             # Combine chunks into a single context
             full_context = "\n\n".join([chunk.page_content for chunk in context_chunks])
-            
-            # Create a prompt for summarization with context
+
             summary_prompt = PromptTemplate.from_template(
                 "Given the following book context, provide a concise summary of the key points and themes:\n\n"
                 "Context:\n{context}\n\n"
@@ -47,7 +47,7 @@ def create_book_summary_tool(llm, text_splitter, docs):
             
             section_summaries.append({
                 "section_range": f"Chunks {i} to {i+2}",
-                "context": full_context[:500] + "...",  # Truncate for brevity
+                "context": full_context[:500] + "...", 
                 "summary": summary
             })
         
@@ -65,8 +65,7 @@ def create_book_summary_tool(llm, text_splitter, docs):
         """
         # Generate section summaries
         section_summaries = generate_section_summaries()
-        
-        # Create a comprehensive summary prompt
+
         comprehensive_summary_prompt = PromptTemplate.from_template(
             "Using the following section summaries, create a comprehensive overview of the book:\n\n"
             "{section_summaries}\n\n"
@@ -74,7 +73,7 @@ def create_book_summary_tool(llm, text_splitter, docs):
             "Comprehensive Summary:"
         )
         
-        # Generate comprehensive summary
+        # Generate a summary for all of the sections
         comprehensive_summary_chain = comprehensive_summary_prompt | llm
         comprehensive_summary = comprehensive_summary_chain.invoke({
             "section_summaries": "\n\n".join([

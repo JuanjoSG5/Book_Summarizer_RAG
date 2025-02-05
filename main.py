@@ -21,13 +21,16 @@ llm = ChatOpenAI(
     },
 )
 
+# Load the book file or the text file to be processed 
 url = "sample.txt"
 loader = TextLoader(url)
 docs = loader.load()
 
+# Split the text into chunks of 4000 characters
 textSplitter = RecursiveCharacterTextSplitter(chunk_size=4000, chunk_overlap=1000)
 splits = textSplitter.split_documents(docs)
 
+# Generate embeddings for the text chunks
 embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-mpnet-base-v2")
 vectorstore = Chroma.from_documents(documents=splits, embedding=embeddings)
 
@@ -36,10 +39,15 @@ def generateBookSummary():
     return create_book_summary_tool.invoke({"llm":llm, "text_splitter":textSplitter, "docs":docs})
 
 def chatbot(message, previousHistory):
-    # Check if message contains summary keyword
-    if "resumen" in message.lower():
-        summary = generateBookSummary()
-        return [(message, summary)]
+    """_summary_
+
+    Args:
+        message (_type_): _description_
+        previousHistory (_type_): _description_
+
+    Yields:
+        _type_: _description_
+    """
     
     relevantDocs = vectorstore.similarity_search(message)
     contextText = "\n\n".join([doc.page_content for doc in relevantDocs])
@@ -70,6 +78,18 @@ def chatbot(message, previousHistory):
                 yield partialResponse
 
 def processMessage(message, history):
+    """
+    
+    Handles the message and chatbot response. If it find the keyword "resumen" in the message, it generates a book summary.
+    Otherwise, it calls the chatbot function to generate a response based on the message.
+
+    Args:
+        message (_type_): _description_
+        history (_type_): _description_
+
+    Yields:
+        _type_: _description_
+    """
     displayHistory = history + [(message, "⏳ Procesando...")]
     yield displayHistory
     
