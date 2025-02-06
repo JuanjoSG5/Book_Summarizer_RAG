@@ -33,13 +33,22 @@ def process_uploaded_file(file):
     """
     if file is None:
         return None, None
-    # file can be a file object or a file path; use file.name if available.
+    # file is expected to be a file object with a 'name' attribute
     file_path = file.name if hasattr(file, 'name') else file
     loader = TextLoader(file_path)
     docs = loader.load()
     splits = textSplitter.split_documents(docs)
     vectorstore = Chroma.from_documents(documents=splits, embedding=embeddings)
     return docs, vectorstore
+
+def process_file(file):
+    """
+    Single function to process the uploaded file, returning docs, vectorstore, and a status message.
+    """
+    docs, vectorstore = process_uploaded_file(file)
+    if docs is None or vectorstore is None:
+        return None, None, "Error al procesar el archivo. Asegúrate de que el archivo es válido."
+    return docs, vectorstore, "Archivo procesado exitosamente."
 
 def generateBookSummary(docs):
     """Generate book summary using the tool with the provided documents."""
@@ -83,10 +92,10 @@ def processMessage(message, history, vectorstore, docs):
     otherwise, stream the chatbot response using the uploaded file’s vectorstore.
     """
     new_history = history + [{"role": "user", "content": message}]
-    # Temporary display message while processing
     displayHistory = new_history + [{"role": "assistant", "content": "⏳ Procesando..."}]
     yield displayHistory, new_history, vectorstore, docs
 
+    # Check if file processing has been done
     if vectorstore is None or docs is None:
         error_msg = "Por favor, sube un archivo válido antes de enviar mensajes."
         updatedHistory = new_history + [{"role": "assistant", "content": error_msg}]
@@ -139,21 +148,11 @@ def createInterface():
             label="Ejemplos:"
         )
 
-        def handle_file(file):
-            docs, vectorstore = process_uploaded_file(file)
-            if docs is None or vectorstore is None:
-                return "Error al procesar el archivo. Asegúrate de que el archivo es válido."
-            return "Archivo procesado exitosamente."
-
-        # Process the uploaded file and update the document and vectorstore state.
+        # Process the uploaded file and update states in one function call.
         file_process_button.click(
-            fn=handle_file,
+            fn=process_file,
             inputs=[file_upload],
-            outputs=[file_status]
-        ).then(
-            fn=lambda file: process_uploaded_file(file),
-            inputs=[file_upload],
-            outputs=[docs_state, vector_state]
+            outputs=[docs_state, vector_state, file_status]
         )
         
         submitEvent = textbox.submit(
