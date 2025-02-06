@@ -1,5 +1,6 @@
 from os import getenv
 from dotenv import load_dotenv
+import openai
 import gradio as gr
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_openai import ChatOpenAI
@@ -16,39 +17,42 @@ llm = ChatOpenAI(
     model_name="google/gemini-flash-1.5-8b",
     model_kwargs={
         "extra_headers": {
-            "Helicone-Auth": f"Bearer " + getenv("HELICONE_API_KEY")
+            "Helicone-Auth": f"Bearer {getenv('HELICONE_API_KEY')}"
         }
     },
 )
 
-# Load the book file or the text file to be processed 
-url = "sample.txt"
-loader = TextLoader(url)
-docs = loader.load()
-
-# Split the text into chunks of 4000 characters
+# Initialize common resources for file processing
 textSplitter = RecursiveCharacterTextSplitter(chunk_size=4000, chunk_overlap=1000)
-splits = textSplitter.split_documents(docs)
-
-# Generate embeddings for the text chunks
 embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-mpnet-base-v2")
-vectorstore = Chroma.from_documents(documents=splits, embedding=embeddings)
 
-def generateBookSummary():
-    """Helper function to generate book summary using the tool"""
-    return create_book_summary_tool.invoke({"llm":llm, "text_splitter":textSplitter, "docs":docs})
-
-def chatbot(message, previousHistory):
-    """_summary_
-
-    Args:
-        message (_type_): _description_
-        previousHistory (_type_): _description_
-
-    Yields:
-        _type_: _description_
+def process_uploaded_file(file):
     """
-    
+    Process the uploaded file by loading its content, splitting the text,
+    and creating a vectorstore for retrieval.
+    """
+    if file is None:
+        return None, None
+    # file can be a file object or a file path; use file.name if available.
+    file_path = file.name if hasattr(file, 'name') else file
+    loader = TextLoader(file_path)
+    docs = loader.load()
+    splits = textSplitter.split_documents(docs)
+    vectorstore = Chroma.from_documents(documents=splits, embedding=embeddings)
+    return docs, vectorstore
+
+def generateBookSummary(docs):
+    """Generate book summary using the tool with the provided documents."""
+    return create_book_summary_tool.invoke({
+        "llm": llm, 
+        "text_splitter": textSplitter, 
+        "docs": docs
+    })
+
+def chatbot(message, previousHistory, vectorstore):
+    """
+    Build the prompt with conversation history and file-based context, then stream the LLM response.
+    """
     relevantDocs = vectorstore.similarity_search(message)
     contextText = "\n\n".join([doc.page_content for doc in relevantDocs])
     
@@ -61,15 +65,11 @@ def chatbot(message, previousHistory):
         "Respuesta:"
     )
 
-    messages = []
-    for user_msg, botResponse in previousHistory:
-        messages.append({"role": "user", "content": user_msg})
-        messages.append({"role": "assistant", "content": botResponse})
+    messages = previousHistory.copy()
     messages.append({"role": "user", "content": finalPrompt})
-
+    
     response = llm.stream(messages)
     partialResponse = ""
-
     for chunk in response:
         if chunk and hasattr(chunk, "content"):
             content = chunk.content
@@ -77,50 +77,58 @@ def chatbot(message, previousHistory):
                 partialResponse += content
                 yield partialResponse
 
-def processMessage(message, history):
+def processMessage(message, history, vectorstore, docs):
     """
-    
-    Handles the message and chatbot response. If it find the keyword "resumen" in the message, it generates a book summary.
-    Otherwise, it calls the chatbot function to generate a response based on the message.
-
-    Args:
-        message (_type_): _description_
-        history (_type_): _description_
-
-    Yields:
-        _type_: _description_
+    Process incoming messages. If the message contains "resumen", generate a book summary;
+    otherwise, stream the chatbot response using the uploaded file’s vectorstore.
     """
-    displayHistory = history + [(message, "⏳ Procesando...")]
-    yield displayHistory
-    
-    # Check for summary keyword first
+    new_history = history + [{"role": "user", "content": message}]
+    # Temporary display message while processing
+    displayHistory = new_history + [{"role": "assistant", "content": "⏳ Procesando..."}]
+    yield displayHistory, new_history, vectorstore, docs
+
+    if vectorstore is None or docs is None:
+        error_msg = "Por favor, sube un archivo válido antes de enviar mensajes."
+        updatedHistory = new_history + [{"role": "assistant", "content": error_msg}]
+        yield updatedHistory, new_history, vectorstore, docs
+        return
+
     if "resumen" in message.lower():
-        summary = generateBookSummary()
-        updatedHistory = history + [(message, summary.content)]
-        yield updatedHistory
-        
+        summary = generateBookSummary(docs)
+        updatedHistory = new_history + [{"role": "assistant", "content": summary.content}]
+        yield updatedHistory, new_history, vectorstore, docs
     else:
         full_response = ""
-        for response_chunk in chatbot(message, history):
+        for response_chunk in chatbot(message, new_history, vectorstore):
             full_response = response_chunk
-            displayHistory[-1] = (message, full_response)
-            yield displayHistory
+            updatedDisplayHistory = new_history + [{"role": "assistant", "content": full_response}]
+            yield updatedDisplayHistory, new_history, vectorstore, docs
 
-def createSummary(history):
-    summary = generateBookSummary()
-    return history + [("Generar resumen del libro", summary)]
+def createSummary(history, docs):
+    summary = generateBookSummary(docs)
+    return history + [{"role": "assistant", "content": summary.content}]
 
 def createInterface():
     with gr.Blocks(title="ChatBot RAG - Resumen de libros", theme="ocean") as demo:
-        gr.Markdown("## Asistente virtual resumidor de libros.")
+        gr.Markdown("## Asistente virtual resumidor de libros")
         
-        chatbotComponent = gr.Chatbot(height=400)
+        # States to store chat history, document data, and the vectorstore
+        browser_state = gr.BrowserState(default_value=[], storage_key="chat_history")
+        docs_state = gr.State(None)
+        vector_state = gr.State(None)
+        
+        # File upload component for user-provided book file
+        file_upload = gr.File(label="Sube tu archivo de libro", file_count="single")
+        file_process_button = gr.Button("Procesar Archivo")
+        file_status = gr.Textbox(label="Estado de archivo", interactive=False)
+        
+        # Chatbot interface components
+        chatbotComponent = gr.Chatbot(type="messages", height=400)
         textbox = gr.Textbox(placeholder="Escribe tu mensaje aquí...", container=False, scale=7)
         
         with gr.Row():
             submitBtn = gr.Button("Enviar")
             
-        # Example queries 
         examples = gr.Examples(
             examples=[
                 "¿Cuál es el argumento principal?",
@@ -131,21 +139,35 @@ def createInterface():
             label="Ejemplos:"
         )
 
-        # Textbox submit handler
-        submitEvent = textbox.submit(
-            fn=processMessage,
-            inputs=[textbox, chatbotComponent],
-            outputs=[chatbotComponent],
-            show_progress="hidden"
+        def handle_file(file):
+            docs, vectorstore = process_uploaded_file(file)
+            if docs is None or vectorstore is None:
+                return "Error al procesar el archivo. Asegúrate de que el archivo es válido."
+            return "Archivo procesado exitosamente."
+
+        # Process the uploaded file and update the document and vectorstore state.
+        file_process_button.click(
+            fn=handle_file,
+            inputs=[file_upload],
+            outputs=[file_status]
+        ).then(
+            fn=lambda file: process_uploaded_file(file),
+            inputs=[file_upload],
+            outputs=[docs_state, vector_state]
         )
         
+        submitEvent = textbox.submit(
+            fn=processMessage,
+            inputs=[textbox, browser_state, vector_state, docs_state],
+            outputs=[chatbotComponent, browser_state, vector_state, docs_state],
+            show_progress="hidden"
+        )
         submitEvent.then(lambda: gr.Textbox(value=""), None, [textbox])
         
-        # Submit button handler
         submitBtn.click(
             fn=processMessage,
-            inputs=[textbox, chatbotComponent],
-            outputs=[chatbotComponent],
+            inputs=[textbox, browser_state, vector_state, docs_state],
+            outputs=[chatbotComponent, browser_state, vector_state, docs_state],
             show_progress="hidden"
         ).then(lambda: gr.Textbox(value=""), None, [textbox])
 
