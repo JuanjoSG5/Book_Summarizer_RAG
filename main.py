@@ -1,3 +1,4 @@
+import os
 from os import getenv
 from dotenv import load_dotenv
 import openai
@@ -8,6 +9,7 @@ from langchain_community.document_loaders import TextLoader
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_chroma import Chroma
 from tool import create_book_summary_tool
+from langchain_community.document_loaders import PyPDFLoader
 
 load_dotenv()
 
@@ -29,13 +31,20 @@ embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-mpnet-b
 def process_uploaded_file(file):
     """
     Process the uploaded file by loading its content, splitting the text,
-    and creating a vectorstore for retrieval.
+    and creating a vectorstore for retrieval. Supports both text and PDF files.
     """
     if file is None:
         return None, None
-    # file is expected to be a file object with a 'name' attribute
+    # Obtain file path from file object or path string
     file_path = file.name if hasattr(file, 'name') else file
-    loader = TextLoader(file_path)
+    _, ext = os.path.splitext(file_path)
+    
+    # Select the appropriate loader based on file extension
+    if ext.lower() == '.pdf':
+        loader = PyPDFLoader(file_path)
+    else:
+        loader = TextLoader(file_path)
+    
     docs = loader.load()
     splits = textSplitter.split_documents(docs)
     vectorstore = Chroma.from_documents(documents=splits, embedding=embeddings)
@@ -51,7 +60,9 @@ def process_file(file):
     return docs, vectorstore, "Archivo procesado exitosamente."
 
 def generateBookSummary(docs):
-    """Generate book summary using the tool with the provided documents."""
+    """
+    Generate book summary using the tool with the provided documents.
+    """
     return create_book_summary_tool.invoke({
         "llm": llm, 
         "text_splitter": textSplitter, 
