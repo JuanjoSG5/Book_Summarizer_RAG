@@ -16,7 +16,7 @@ load_dotenv()
 llm = ChatOpenAI(
     openai_api_key=getenv("OPENROUTER_API_KEY"),
     openai_api_base=getenv("OPENROUTER_BASE_URL"),
-    model_name="google/gemini-flash-1.5-8b",
+    model_name="google/gemini-flash-1.5",
     model_kwargs={
         "extra_headers": {
             "Helicone-Auth": f"Bearer {getenv('HELICONE_API_KEY')}"
@@ -85,8 +85,7 @@ def chatbot(message, previousHistory, vectorstore):
         "Respuesta:"
     )
 
-    messages = previousHistory.copy()
-    messages.append({"role": "user", "content": finalPrompt})
+    messages = [{"role": "user", "content": finalPrompt}]
     
     response = llm.stream(messages)
     partialResponse = ""
@@ -105,6 +104,8 @@ def processMessage(message, history, vectorstore, docs):
     new_history = history + [{"role": "user", "content": message}]
     displayHistory = new_history + [{"role": "assistant", "content": "⏳ Procesando..."}]
     yield displayHistory, new_history, vectorstore, docs
+    
+    keywords = ["resumen", "resume"]
 
     # Check if file processing has been done
     if vectorstore is None or docs is None:
@@ -113,7 +114,7 @@ def processMessage(message, history, vectorstore, docs):
         yield updatedHistory, new_history, vectorstore, docs
         return
 
-    if "resumen" in message.lower():
+    if any(keyword in message.lower() for keyword in keywords):
         summary = generateBookSummary(docs)
         updatedHistory = new_history + [{"role": "assistant", "content": summary.content}]
         yield updatedHistory, new_history, vectorstore, docs
@@ -143,7 +144,7 @@ def createInterface():
         file_status = gr.Textbox(label="Estado de archivo", interactive=False)
         
         # Chatbot interface components
-        chatbotComponent = gr.Chatbot(type="messages", height=400)
+        chatbotComponent = gr.Chatbot(type="messages", height=600)
         textbox = gr.Textbox(placeholder="Escribe tu mensaje aquí...", container=False, scale=7)
         
         with gr.Row():
