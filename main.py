@@ -82,16 +82,21 @@ def chatbot(message, vectorstore):
     )
     
     relevantDocs = retriever.invoke(message)
-    contextText = "\n\n".join([doc.page_content for doc in relevantDocs])
+    context = []
+    for doc in relevantDocs:
+        source = doc.metadata.get('source', 'unknown')
+        content = f"Source: {source}\n{doc.page_content}"
+        context.append(content)
     
-    finalPrompt = (
-        "Eres un asistente experto en solucionar dudas sobre conceptos descritos en un libro. "
-        "Utiliza el siguiente contexto para responder de forma breve y concisa. "
-        "Si no encuentras la información, responde que no la conoces.\n\n"
-        f"Contexto:\n{contextText}\n\n"
-        f"Pregunta: {message}\n"
-        "Respuesta:"
-    )
+    finalPrompt = """ Eres un experto asistente de libros. Usa este contexto:
+    {context}
+
+    Pregunta: {question}
+    
+    - Responde en 2-5 frases
+    - Cita la fuente si es posible
+    - Si no estas segure responde: 'No he podido encontrar informacion en el libro'
+    Respuesta:"""
 
     messages = [{"role": "user", "content": finalPrompt}]
     
