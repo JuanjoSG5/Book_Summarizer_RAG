@@ -72,11 +72,16 @@ def generateBookSummary(docs):
         "docs": docs
     })
 
-def chatbot(message, previousHistory, vectorstore):
+def chatbot(message, vectorstore):
     """
     Build the prompt with conversation history and file-based context, then stream the LLM response.
     """
-    relevantDocs = vectorstore.similarity_search(message)
+    retriever = vectorstore.as_retriever(
+        search_type='mmr',
+        search_kwargs={'k': 5, 'score_threshold': 0.5}
+    )
+    
+    relevantDocs = retriever.get_relevant_documents(message)
     contextText = "\n\n".join([doc.page_content for doc in relevantDocs])
     
     finalPrompt = (
@@ -123,7 +128,7 @@ def processMessage(message, history, vectorstore, docs):
         yield updatedHistory, new_history, vectorstore, docs
     else:
         full_response = ""
-        for response_chunk in chatbot(message, new_history, vectorstore):
+        for response_chunk in chatbot(message, vectorstore):
             full_response = response_chunk
             updatedDisplayHistory = new_history + [{"role": "assistant", "content": full_response}]
             yield updatedDisplayHistory, new_history, vectorstore, docs
