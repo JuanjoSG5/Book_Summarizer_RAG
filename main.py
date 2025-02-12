@@ -81,7 +81,7 @@ def chatbot(message, vectorstore):
         search_kwargs={'k': 5, 'score_threshold': 0.5}
     )
     
-    relevantDocs = retriever.get_relevant_documents(message)
+    relevantDocs = retriever.invoke(message)
     contextText = "\n\n".join([doc.page_content for doc in relevantDocs])
     
     finalPrompt = (
