@@ -114,6 +114,7 @@ def processMessage(message, history, vectorstore, docs):
     Process incoming messages. If the message contains "resumen", generate a book summary;
     otherwise, stream the chatbot response using the uploaded file’s vectorstore.
     """
+    # TODO: Debug this process properly and see if new_hsitory is needed or not
     new_history = history + [{"role": "user", "content": message}]
     displayHistory = new_history + [{"role": "assistant", "content": "⏳ Procesando..."}]
     yield displayHistory, new_history, vectorstore, docs
