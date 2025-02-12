@@ -7,7 +7,7 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_openai import ChatOpenAI
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_chroma import Chroma
-from tool import create_book_summary_tool
+from tool import createBookSummaryTool
 from langchain_community.document_loaders import UnstructuredFileLoader
 
 load_dotenv()
@@ -26,7 +26,7 @@ llm = ChatOpenAI(
 textSplitter = RecursiveCharacterTextSplitter(chunk_size=4000, chunk_overlap=1000)
 embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-mpnet-base-v2")
 
-def process_uploaded_file(file):
+def processUploadedFile(file):
     """
     Process the uploaded file by loading its content, splitting the text,
     and creating a vectorstore for retrieval. 
@@ -34,9 +34,9 @@ def process_uploaded_file(file):
     if file is None:
         return None, None
     
-    file_path = file.name if hasattr(file, 'name') else file
+    filePath = file.name if hasattr(file, 'name') else file
     
-    loader = UnstructuredFileLoader(file_path)  # Handles multiple formats
+    loader = UnstructuredFileLoader(filePath)  # Handles multiple formats
     # Add error handling
     try:
         docs = loader.load()
@@ -44,20 +44,20 @@ def process_uploaded_file(file):
         print(f"Error loading file: {e}")
         return None, None
     # Experiment with different splitting strategies
-    text_splitter = RecursiveCharacterTextSplitter(
+    textSplitter = RecursiveCharacterTextSplitter(
         chunk_size=2000,
         chunk_overlap=200,
         separators=["\n\n", "\n", " ", ""]
     )
-    splits = text_splitter.split_documents(docs)
+    splits = textSplitter.split_documents(docs)
     vectorstore = Chroma.from_documents(documents=splits, embedding=embeddings)
     return docs, vectorstore
 
-def process_file(file):
+def processFile(file):
     """
     Single function to process the uploaded file, returning docs, vectorstore, and a status message.
     """
-    docs, vectorstore = process_uploaded_file(file)
+    docs, vectorstore = processUploadedFile(file)
     if docs is None or vectorstore is None:
         return None, None, "Error al procesar el archivo. Asegúrate de que el archivo es válido."
     return docs, vectorstore, "Archivo procesado exitosamente."
@@ -66,7 +66,7 @@ def generateBookSummary(docs):
     """
     Generate book summary using the tool with the provided documents.
     """
-    return create_book_summary_tool.invoke({
+    return createBookSummaryTool.invoke({
         "llm": llm, 
         "text_splitter": textSplitter, 
         "docs": docs
@@ -174,7 +174,7 @@ def createInterface():
         )
 
         fileButton.click(
-            fn=process_file,
+            fn=processFile,
             inputs=[fileUpload],
             outputs=[docsState, vectorState, fileStatus]
         )
