@@ -5,11 +5,10 @@ import openai
 import gradio as gr
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_openai import ChatOpenAI
-from langchain_community.document_loaders import TextLoader
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_chroma import Chroma
 from tool import create_book_summary_tool
-from langchain_community.document_loaders import PyPDFLoader
+from langchain_community.document_loaders import UnstructuredFileLoader
 
 load_dotenv()
 
@@ -24,29 +23,33 @@ llm = ChatOpenAI(
     },
 )
 
-# Initialize common resources for file processing
 textSplitter = RecursiveCharacterTextSplitter(chunk_size=4000, chunk_overlap=1000)
 embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-mpnet-base-v2")
 
 def process_uploaded_file(file):
     """
     Process the uploaded file by loading its content, splitting the text,
-    and creating a vectorstore for retrieval. Supports both text and PDF files.
+    and creating a vectorstore for retrieval. 
     """
     if file is None:
         return None, None
-    # Obtain file path from file object or path string
+    
     file_path = file.name if hasattr(file, 'name') else file
-    _, ext = os.path.splitext(file_path)
     
-    # Select the appropriate loader based on file extension
-    if ext.lower() == '.pdf':
-        loader = PyPDFLoader(file_path)
-    else:
-        loader = TextLoader(file_path)
-    
-    docs = loader.load()
-    splits = textSplitter.split_documents(docs)
+    loader = UnstructuredFileLoader(file_path)  # Handles multiple formats
+    # Add error handling
+    try:
+        docs = loader.load()
+    except Exception as e:
+        print(f"Error loading file: {e}")
+        return None, None
+    # Experiment with different splitting strategies
+    text_splitter = RecursiveCharacterTextSplitter(
+        chunk_size=2000,
+        chunk_overlap=200,
+        separators=["\n\n", "\n", " ", ""]
+    )
+    splits = text_splitter.split_documents(docs)
     vectorstore = Chroma.from_documents(documents=splits, embedding=embeddings)
     return docs, vectorstore
 
@@ -134,14 +137,14 @@ def createInterface():
         gr.Markdown("## Asistente virtual resumidor de libros")
         
         # States to store chat history, document data, and the vectorstore
-        browser_state = gr.BrowserState(default_value=[], storage_key="chat_history")
-        docs_state = gr.State(None)
-        vector_state = gr.State(None)
+        browserState = gr.BrowserState(default_value=[], storage_key="chat_history")
+        docsState = gr.State(None)
+        vectorState = gr.State(None)
         
         # File upload component for user-provided book file
-        file_upload = gr.File(label="Sube tu archivo de libro", file_count="single")
-        file_process_button = gr.Button("Procesar Archivo")
-        file_status = gr.Textbox(label="Estado de archivo", interactive=False)
+        fileUpload = gr.File(label="Sube el archivo", file_count="single")
+        fileButton = gr.Button("Procesar Archivo")
+        fileStatus = gr.Textbox(label="Estado de archivo", interactive=False)
         
         # Chatbot interface components
         chatbotComponent = gr.Chatbot(type="messages", height=600)
@@ -152,33 +155,33 @@ def createInterface():
             
         examples = gr.Examples(
             examples=[
-                "¿Cuál es el argumento principal?",
                 "Haz un resumen del contenido",
-                "¿Qué temas principales se abordan?"
+                "¿Cuál es el argumento principal?",
+                "Entra en más detalles sobre "
             ],
             inputs=[textbox],
             label="Ejemplos:"
         )
 
-        # Process the uploaded file and update states in one function call.
-        file_process_button.click(
+        fileButton.click(
             fn=process_file,
-            inputs=[file_upload],
-            outputs=[docs_state, vector_state, file_status]
+            inputs=[fileUpload],
+            outputs=[docsState, vectorState, fileStatus]
         )
         
         submitEvent = textbox.submit(
             fn=processMessage,
-            inputs=[textbox, browser_state, vector_state, docs_state],
-            outputs=[chatbotComponent, browser_state, vector_state, docs_state],
+            inputs=[textbox, browserState, vectorState, docsState],
+            outputs=[chatbotComponent, browserState, vectorState, docsState],
             show_progress="hidden"
         )
+        
         submitEvent.then(lambda: gr.Textbox(value=""), None, [textbox])
         
         submitBtn.click(
             fn=processMessage,
-            inputs=[textbox, browser_state, vector_state, docs_state],
-            outputs=[chatbotComponent, browser_state, vector_state, docs_state],
+            inputs=[textbox, browserState, vectorState, docsState],
+            outputs=[chatbotComponent, browserState, vectorState, docsState],
             show_progress="hidden"
         ).then(lambda: gr.Textbox(value=""), None, [textbox])
 
