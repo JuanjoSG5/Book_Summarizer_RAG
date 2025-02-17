@@ -27,10 +27,8 @@ def createBookSummaryTool(llm, text_splitter, docs):
         """
         sectionSummaries = []
         
-        # Iterate over 2 chunks at the time, to reduce the context size
-        for i in range(0, len(splits), 2):  
-            # Select current and surrounding chunks for context
-            contextChunks = splits[max(0, i-1):i+2]
+        for i in range(0, len(splits), 5):  
+            contextChunks = splits[max(0, i-1):i+5]
             
             # Combine chunks into a single context
             fullContext = "\n\n".join([chunk.page_content for chunk in contextChunks])
@@ -46,7 +44,7 @@ def createBookSummaryTool(llm, text_splitter, docs):
             summary = summaryChain.invoke({"context": fullContext})
             
             sectionSummaries.append({
-                "section_range": f"Chunks {i} to {i+2}",
+                "section_range": f"Chunks {i} to {i+5}",
                 "context": fullContext[:500] + "...", 
                 "summary": summary
             })

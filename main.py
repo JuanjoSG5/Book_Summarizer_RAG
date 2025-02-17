@@ -1,12 +1,13 @@
+
 from os import getenv
 from dotenv import load_dotenv
-from tool import createBookSummaryTool
 import gradio as gr
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_openai import ChatOpenAI
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_chroma import Chroma
-from langchain_unstructured import UnstructuredLoader
+from tool import createBookSummaryTool
+from langchain_community.document_loaders import UnstructuredFileLoader
 
 load_dotenv()
 
@@ -34,7 +35,7 @@ def processUploadedFile(file):
     
     filePath = file.name if hasattr(file, 'name') else file
     
-    loader = UnstructuredLoader(filePath)  # Handles multiple formats
+    loader = UnstructuredFileLoader(filePath)  # Handles multiple formats
     # Add error handling
     try:
         docs = loader.load()
