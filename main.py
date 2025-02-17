@@ -1,13 +1,11 @@
-import os
 from os import getenv
 from dotenv import load_dotenv
-import openai
+from tool import createBookSummaryTool
 import gradio as gr
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_openai import ChatOpenAI
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_chroma import Chroma
-from tool import createBookSummaryTool
 from langchain_community.document_loaders import UnstructuredFileLoader
 
 load_dotenv()

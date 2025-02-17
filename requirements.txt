@@ -1,0 +1,7 @@
+python-dotenv
+gradio
+langchain_text_splitters
+langchain_openai
+langchain_huggingface
+langchain_chroma
+langchain_community
