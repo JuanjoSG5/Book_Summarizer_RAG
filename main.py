@@ -23,7 +23,7 @@ llm = ChatOpenAI(
     },
 )
 
-textSplitter = RecursiveCharacterTextSplitter(chunk_size=4000, chunk_overlap=1000)
+textSplitter = RecursiveCharacterTextSplitter(chunk_size=4500, chunk_overlap=750)
 embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-mpnet-base-v2")
 
 def processUploadedFile(file):
