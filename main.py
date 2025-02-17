@@ -6,7 +6,7 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_openai import ChatOpenAI
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_chroma import Chroma
-from langchain_community.document_loaders import UnstructuredFileLoader
+from langchain_unstructured import UnstructuredLoader
 
 load_dotenv()
 
@@ -34,7 +34,7 @@ def processUploadedFile(file):
     
     filePath = file.name if hasattr(file, 'name') else file
     
-    loader = UnstructuredFileLoader(filePath)  # Handles multiple formats
+    loader = UnstructuredLoader(filePath)  # Handles multiple formats
     # Add error handling
     try:
         docs = loader.load()
