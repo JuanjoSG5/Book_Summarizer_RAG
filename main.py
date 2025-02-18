@@ -8,6 +8,8 @@ from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_chroma import Chroma
 from tool import createBookSummaryTool
 from langchain_community.document_loaders import UnstructuredFileLoader
+from langchain_core.prompts import PromptTemplate  # Importa PromptTemplate
+from langchain_core.output_parsers import StrOutputParser #Import output parser
 
 load_dotenv()
 
@@ -71,49 +73,12 @@ def generateBookSummary(docs):
         "docs": docs
     })
 
-def chatbot(message, vectorstore):
-    """
-    Build the prompt with conversation history and file-based context, then stream the LLM response.
-    """
-    retriever = vectorstore.as_retriever(
-        search_type='mmr',
-        search_kwargs={'k': 5, 'score_threshold': 0.5}
-    )
-    
-    relevantDocs = retriever.invoke(message)
-    context = []
-    for doc in relevantDocs:
-        source = doc.metadata.get('source', 'unknown')
-        content = f"Source: {source}\n{doc.page_content}"
-        context.append(content)
-    
-    finalPrompt = """ Eres un experto asistente de libros. Usa este contexto:
-    {context}
-
-    Pregunta: {question}
-    
-    - Responde en 2-5 frases
-    - Cita la fuente si es posible
-    - Si no estas segure responde: 'No he podido encontrar informacion en el libro'
-    Respuesta:"""
-
-    messages = [{"role": "user", "content": finalPrompt}]
-    
-    response = llm.stream(messages)
-    partialResponse = ""
-    for chunk in response:
-        if chunk and hasattr(chunk, "content"):
-            content = chunk.content
-            if content is not None:
-                partialResponse += content
-                yield partialResponse
-
 def processMessage(message, history, vectorstore, docs):
     """
     Process incoming messages. If the message contains "resumen", generate a book summary;
     otherwise, stream the chatbot response using the uploaded file’s vectorstore.
     """
-    # TODO: Debug this process properly and see if new_hsitory is needed or not
+    # TODO: Debug this process properly and see if new_history is needed or not
     new_history = history + [{"role": "user", "content": message}]
     displayHistory = new_history + [{"role": "assistant", "content": "⏳ Procesando..."}]
     yield displayHistory, new_history, vectorstore, docs
@@ -142,58 +107,86 @@ def createSummary(history, docs):
     summary = generateBookSummary(docs)
     return history + [{"role": "assistant", "content": summary.content}]
 
+# Función principal del chatbot (adaptada para gr.ChatInterface)
+def chatbot(message, history, vectorstore=None, docs=None):
+    """Función principal para interactuar con el chatbot."""
+
+    if message.lower().startswith("resumen") or "resumen" in message.lower():
+        if not docs:
+             yield "Por favor, sube un archivo primero."
+             return
+        summary = createBookSummaryTool(llm, textSplitter, docs)
+        yield summary
+        return
+
+
+    if not vectorstore:
+        yield "Por favor, sube un archivo y procésalo primero."
+        return
+
+    retriever = vectorstore.as_retriever(search_type="mmr", search_kwargs={'k': 5, 'fetch_k': 10, 'lambda_mult': 0.7})
+    relevant_docs = retriever.invoke(message)
+    context = "\n\n".join([f"Fuente: {doc.metadata.get('source', 'desconocida')}\n{doc.page_content}" for doc in relevant_docs])
+
+    prompt_template = PromptTemplate.from_template(
+        """Eres un experto asistente de documentos. Usa este contexto:
+        {context}
+
+        Pregunta: {question}
+
+        - Responde en 2-5 frases.
+        - Si no estás seguro, responde: 'No he podido encontrar información en el documento.'
+        Respuesta:"""
+    )
+
+    # Construye la cadena de conversación.  MUY IMPORTANTE:  Añade StrOutputParser()
+    chain = prompt_template | llm | StrOutputParser()
+
+    response = chain.stream({"context": context, "question": message})
+    partial_response = ""
+    for chunk in response:
+       partial_response += chunk
+       yield partial_response
+
+
+
+
+# Interfaz de Gradio (usando gr.ChatInterface)
+# Interfaz de Gradio (usando gr.ChatInterface)
 def createInterface():
     with gr.Blocks(title="ChatBot RAG - Resumen de libros", theme="ocean") as demo:
         gr.Markdown("## Asistente virtual resumidor de libros")
-        
-        # States to store chat history, document data, and the vectorstore
-        browserState = gr.BrowserState(default_value=[], storage_key="chat_history")
-        docsState = gr.State(None)
-        vectorState = gr.State(None)
-        
-        # File upload component for user-provided book file
-        fileUpload = gr.File(label="Sube el archivo", file_count="single")
-        fileButton = gr.Button("Procesar Archivo")
-        fileStatus = gr.Textbox(label="Estado de archivo", interactive=False)
-        
-        # Chatbot interface components
-        chatbotComponent = gr.Chatbot(type="messages", height=600)
-        textbox = gr.Textbox(placeholder="Escribe tu mensaje aquí...", container=False, scale=7)
-        
-        with gr.Row():
-            submitBtn = gr.Button("Enviar")
-            
-        examples = gr.Examples(
+
+        # Estados para el vectorstore y los documentos.
+        docs_state = gr.State(None)
+        vectorstore_state = gr.State(None)
+
+        # Subida de archivos y botón de procesamiento
+        with gr.Column():
+            file_upload = gr.File(label="Sube el archivo", file_count="single")
+            process_button = gr.Button("Procesar Archivo")
+        file_status = gr.Textbox(label="Estado del archivo", interactive=False) #Para mostrar si se cargo correctamente
+
+        # ChatInterface
+        chat_interface = gr.ChatInterface(
+            chatbot,
+            additional_inputs=[vectorstore_state, docs_state], # Pasa los estados como entradas adicionales
+            chatbot=gr.Chatbot(height=400),
+            textbox=gr.Textbox(placeholder="Escribe tu pregunta o 'resumen'...", container=False, scale=7),
             examples=[
-                "Haz un resumen del contenido",
-                "¿Cuál es el argumento principal?",
-                "Entra en más detalles sobre "
+                ["Haz un resumen del contenido", None, None],  #  Ejemplo con entradas adicionales
+                ["¿Cuál es el argumento principal?", None, None], #  Ejemplo con entradas adicionales
+                ["Entra en más detalles sobre...", None, None],  #  Ejemplo con entradas adicionales
             ],
-            inputs=[textbox],
-            label="Ejemplos:"
         )
 
-        fileButton.click(
-            fn=processFile,
-            inputs=[fileUpload],
-            outputs=[docsState, vectorState, fileStatus]
+        # Manejadores de eventos
+        process_button.click(
+            processFile,
+            inputs=[file_upload],
+            outputs=[docs_state, vectorstore_state, file_status]
         )
-        
-        submitEvent = textbox.submit(
-            fn=processMessage,
-            inputs=[textbox, browserState, vectorState, docsState],
-            outputs=[chatbotComponent, browserState, vectorState, docsState],
-            show_progress="hidden"
-        )
-        
-        submitEvent.then(lambda: gr.Textbox(value=""), None, [textbox])
-        
-        submitBtn.click(
-            fn=processMessage,
-            inputs=[textbox, browserState, vectorState, docsState],
-            outputs=[chatbotComponent, browserState, vectorState, docsState],
-            show_progress="hidden"
-        ).then(lambda: gr.Textbox(value=""), None, [textbox])
+
 
     return demo
 
