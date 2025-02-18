@@ -151,8 +151,6 @@ def chatbot(message, history, vectorstore=None, docs=None):
 
 
 
-# Interfaz de Gradio (usando gr.ChatInterface)
-# Interfaz de Gradio (usando gr.ChatInterface)
 def createInterface():
     with gr.Blocks(title="ChatBot RAG - Resumen de libros", theme="ocean") as demo:
         gr.Markdown("## Asistente virtual resumidor de libros")
@@ -168,17 +166,21 @@ def createInterface():
         file_status = gr.Textbox(label="Estado del archivo", interactive=False) #Para mostrar si se cargo correctamente
 
         # ChatInterface
-        chat_interface = gr.ChatInterface(
-            chatbot,
-            additional_inputs=[vectorstore_state, docs_state], # Pasa los estados como entradas adicionales
-            chatbot=gr.Chatbot(height=400),
-            textbox=gr.Textbox(placeholder="Escribe tu pregunta o 'resumen'...", container=False, scale=7),
-            examples=[
-                ["Haz un resumen del contenido", None, None],  #  Ejemplo con entradas adicionales
-                ["¿Cuál es el argumento principal?", None, None], #  Ejemplo con entradas adicionales
-                ["Entra en más detalles sobre...", None, None],  #  Ejemplo con entradas adicionales
-            ],
-        )
+        with gr.Row():
+            chat_interface = gr.ChatInterface(
+                chatbot,
+                additional_inputs=[vectorstore_state, docs_state], # Pasa los estados como entradas adicionales
+                chatbot=gr.Chatbot(height=400, type="messages"),
+                textbox=gr.Textbox(placeholder="Escribe tu pregunta o 'resumen'...", container=False, scale=7),
+                examples=[
+                    ["Haz un resumen del contenido", None, None],  #  Ejemplo con entradas adicionales
+                    ["¿Cuál es el argumento principal?", None, None], #  Ejemplo con entradas adicionales
+                    ["Entra en más detalles sobre...", None, None],  #  Ejemplo con entradas adicionales
+                ],
+                type="messages",
+                editable=True,
+                save_history=True,
+            )
 
         # Manejadores de eventos
         process_button.click(
