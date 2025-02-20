@@ -165,22 +165,21 @@ def createInterface():
             process_button = gr.Button("Procesar Archivo")
         file_status = gr.Textbox(label="Estado del archivo", interactive=False) #Para mostrar si se cargo correctamente
 
-        # ChatInterface
-        with gr.Row():
-            chat_interface = gr.ChatInterface(
-                chatbot,
-                additional_inputs=[vectorstore_state, docs_state], # Pasa los estados como entradas adicionales
-                chatbot=gr.Chatbot(height=400, type="messages"),
-                textbox=gr.Textbox(placeholder="Escribe tu pregunta o 'resumen'...", container=False, scale=7),
-                examples=[
-                    ["Haz un resumen del contenido", None, None],  #  Ejemplo con entradas adicionales
-                    ["¿Cuál es el argumento principal?", None, None], #  Ejemplo con entradas adicionales
-                    ["Entra en más detalles sobre...", None, None],  #  Ejemplo con entradas adicionales
-                ],
-                type="messages",
-                editable=True,
-                save_history=True,
-            )
+        
+        chat_interface = gr.ChatInterface(
+            chatbot,
+            additional_inputs=[vectorstore_state, docs_state], # Pasa los estados como entradas adicionales
+            chatbot=gr.Chatbot(height=400, type="messages"),
+            textbox=gr.Textbox(placeholder="Escribe tu pregunta o 'resumen'...", container=False, scale=7),
+            examples=[
+                ["Haz un resumen del contenido", None, None], 
+                ["¿Cuál es el argumento principal?", None, None], 
+                ["¿Cuáles son los temas principales abordados en el documento?", None, None], 
+            ],
+            type="messages",
+            editable=True,
+            save_history=True,
+        )
 
         # Manejadores de eventos
         process_button.click(
