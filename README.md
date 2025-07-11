@@ -32,17 +32,19 @@ Si el usuario incluye la palabra "resumen" en su consulta, la aplicación genera
 Subir el Archivo del Libro:
 Utiliza el componente de carga de archivos de la interfaz para seleccionar un libro en formato TXT o PDF.
 
-Procesamiento del Archivo:
+### Procesamiento del Archivo:
 Al hacer clic en el botón "Procesar Archivo", la aplicación carga el contenido, lo divide en fragmentos y crea un vectorstore para facilitar la búsqueda de información.
 
-Tiempo de procesamiento:
+### Tiempo de procesamiento:
 Archivos TXT: Aproximadamente 1 minuto.
 Archivos PDF: Aproximadamente 2 minutos.
-Interacción con el Chatbot:
+
+#### Interacción con el Chatbot:
 Una vez procesado el archivo, puedes interactuar con el asistente escribiendo preguntas o solicitando un resumen del contenido. El chatbot utiliza el contexto extraído del archivo para proporcionar respuestas breves y concisas.
 
-Tiempos de Procesamiento
-Archivos TXT: El procesamiento completo, desde la carga hasta la creación del vectorstore, demora alrededor de 1 minuto.
-Archivos PDF: Debido a la complejidad en la extracción y procesamiento del contenido, el tiempo aproximado es de 2 minutos.
-Conclusión
+### Tiempos de Procesamiento
+**Archivos TXT**: El procesamiento completo, desde la carga hasta la creación del vectorstore, demora alrededor de 1 minuto.
+**Archivos PDF**: Debido a la complejidad en la extracción y procesamiento del contenido, el tiempo aproximado es de 2 minutos.
+
+## Conclusión
 Este proyecto facilita la interacción con un asistente virtual que ayuda a comprender y resumir libros de manera eficiente. Gracias a la integración de herramientas modernas de procesamiento de lenguaje y a una interfaz amigable, los usuarios pueden obtener respuestas rápidas y precisas sobre el contenido de sus documentos.
